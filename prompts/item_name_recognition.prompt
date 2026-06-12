@@ -1,0 +1,10 @@
+Please identify the product name and model from the following information:
+File Name: {file_title}
+
+Text Chunk (for contextual assistance):
+{context}
+
+Requirements:
+1. The return content must be a string, preferably a complete product name including the brand, model, and name. For example: Supor 5000W High-Power Induction Cooker.
+2. The return result should contain ONLY the product name; do not add any explanations or other content.
+3. If the product name cannot be identified, please return an empty string.

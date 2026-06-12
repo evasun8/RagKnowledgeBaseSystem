@@ -1,0 +1,9 @@
+Please generate a concise example response based on the following user query.
+User Query: {rewritten_query}
+
+Requirements:
+1. The answer must be clear and concise, containing only the core information.
+2. Provide a professional explanation, assuming you are an expert in this field.
+3. Do not use uncertain words such as: assume, perhaps, possible, or may.
+4. Keep the response highly relevant to the query topic.
+5. Answer in English and do not exceed 300 words.

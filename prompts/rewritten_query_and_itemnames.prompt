@@ -1,0 +1,18 @@
+Please extract the product name(s) (item_names) that the user is currently inquiring about based on the dialogue history and the current question.
+
+Dialogue History:
+{history_text}
+
+Current User Question: {query}
+
+Instructions:
+1. If the user explicitly mentions product names, please extract them. There may be one or multiple names, but they must not be duplicated.
+2. If the user uses pronouns (such as "this", "it"), please perform coreference resolution in conjunction with the dialogue history to determine the product name.
+3. If the product name cannot be determined, item_names should return an empty list.
+4. Please rewrite the question (rewritten_query) into an independent, complete question that includes the product name(s).
+
+Please directly return the results in JSON format as follows:
+{{
+    "item_names": ["Product A", "Product B"],
+    "rewritten_query": "Regarding Product A and Product B, ..."
+}}

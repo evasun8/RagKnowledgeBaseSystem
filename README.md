@@ -46,8 +46,17 @@ Build an efficient data processing pipeline that transforms unstructured documen
 
 The pipeline is orchestrated using **LangGraph** state machine. Processing nodes:
 
-```
-START → Task Dispatch → PDF Parsing → Image Processing → Document Chunking → Entity Extraction → Vector Embedding → Milvus Storage → END
+```mermaid
+flowchart LR
+    START([START]) --> A[node_entry\nTask Dispatch]
+    A -->|PDF file| B[node_pdf_to_md\nPDF Parsing]
+    A -->|Markdown file| C[node_md_img\nImage Processing]
+    B --> C
+    C --> D[node_document_split\nDocument Chunking]
+    D --> E[node_item_name_recognition\nEntity Extraction]
+    E --> F[node_bge_embedding\nVector Embedding]
+    F --> G[node_import_milvus\nMilvus Storage]
+    G --> END([END])
 ```
 
 **Step 1: Task Dispatch (node_entry)**
@@ -128,8 +137,28 @@ Build a high-precision, low-latency Q&A retrieval pipeline that converts natural
 
 Orchestrated with **LangGraph** following the flow:
 
-```
-User Query → Intent Recognition → Multi-path Retrieval → RRF Fusion → Rerank → LLM Answer → SSE Streaming Output
+```mermaid
+flowchart LR
+    START([START]) --> A[node_item_name_confirm\nIntent Recognition]
+    A -->|ambiguous| END_EARLY([END])
+    A -->|resolved| FANOUT[ ]:::virtual
+
+    FANOUT --> B[node_search_embedding\nVector Search]
+    FANOUT --> C[node_search_embedding_hyde\nHyDE Search]
+    FANOUT --> D[node_web_search_mcp\nTavily Web Search]
+    FANOUT --> E[node_query_kg\nKnowledge Graph]
+
+    B --> JOIN[ ]:::virtual
+    C --> JOIN
+    D --> JOIN
+    E --> JOIN
+
+    JOIN --> F[node_rrf\nRRF Fusion]
+    F --> G[node_rerank\nBGE-Reranker]
+    G --> H[node_answer_output\nLLM Answer + SSE Stream]
+    H --> END([END])
+
+    classDef virtual fill:none,stroke:none
 ```
 
 **Step 1: Intent Recognition & Query Rewriting**
@@ -200,14 +229,60 @@ Each layer addresses a specific failure mode:
 ## 4. Setup & Running
 
 ### Prerequisites
-- Python 3.10+
-- Docker (for Milvus, MinIO, MongoDB)
+- Python 3.11+
+- Docker (for Milvus, MinIO, MongoDB, Neo4j)
 - OpenAI API key
 - Tavily API key
 
-### Environment Variables
+### 1. Start Infrastructure Services
 
-Create a `.env` file in the project root (never commit this file):
+Run the required backing services via Docker before starting the app servers.
+
+**Milvus** (vector database):
+```bash
+docker run -d --name milvus-standalone \
+  -p 19530:19530 -p 9091:9091 \
+  -v $(pwd)/volumes/milvus:/var/lib/milvus \
+  milvusdb/milvus:latest standalone
+```
+
+**MinIO** (object storage):
+```bash
+docker run -d --name minio \
+  -p 9000:9000 -p 9001:9001 \
+  -e MINIO_ROOT_USER=minioadmin \
+  -e MINIO_ROOT_PASSWORD=minioadmin \
+  -v $(pwd)/volumes/minio:/data \
+  minio/minio server /data --console-address ":9001"
+```
+
+**MongoDB** (session history):
+```bash
+docker run -d --name mongodb \
+  -p 27017:27017 \
+  mongo:latest
+```
+
+**Neo4j** (knowledge graph):
+```bash
+docker run -d --name neo4j \
+  -p 7474:7474 -p 7687:7687 \
+  -e NEO4J_AUTH=none \
+  neo4j:latest
+```
+
+### 2. Download ML Models
+
+```bash
+uv run python app/tool/download_bgem3.py
+uv run python app/tool/download_reranker.py
+```
+
+Update `BGE_M3_PATH` and `BGE_RERANKER_LARGE` in `.env` to point to the downloaded model directories.
+
+### 3. Configure Environment
+
+Create a `.env` file in the project root:
 
 ```bash
 # MinerU - PDF Parsing
@@ -266,7 +341,7 @@ LOG_FILE_LEVEL=ERROR
 LOG_FILE_RETENTION=7 days
 ```
 
-### Install Dependencies
+### 4. Install Dependencies
 ```bash
 # Using uv (recommended)
 uv sync
@@ -275,7 +350,7 @@ uv sync
 pip install -e .
 ```
 
-### Run
+### 5. Run
 
 **Start the File Import Server** (Knowledge Base ingestion UI):
 ```bash
